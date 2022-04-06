@@ -408,7 +408,7 @@ class Thread_Check_Latest(QtCore.QThread):
                 time_temp = datetime.strptime(time_temp, '%Y%m')
                 time_temp = datetime(time_temp.year, time_temp.month, monthrange(time_temp.year, time_temp.month)[-1])
                 time_temp = time_temp.strftime('%Y%m%d')
-            latest_date[text_temp] = time_temp
+            latest_date[freq] = time_temp
         return latest_date
 
 class Thread_Update_Data(QtCore.QThread):
