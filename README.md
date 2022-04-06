@@ -1,6 +1,6 @@
 Quantitative Stock App
 量化投資看盤程式
-
+執行檔下載：https://drive.google.com/file/d/1-wyBZAm6-6RVD5fxqOoU1TCC-biN15Ll/view?usp=sharing
 
 
 ※免責聲明：本程式作為個人設計之專案，內容皆為台股的各項客觀數據，本軟體對數據之正確性不負任何責任，
