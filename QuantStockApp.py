@@ -259,14 +259,14 @@ class MainWindow(QtWidgets.QMainWindow):
     def SetTableEPS(self, sid):
         data_len = 12  # for latest 12 quarter
         res_finstat = self.get_model.getData('fin_stat', sid=sid, daylen=data_len)
-        if res_finstat == [] and res_bs == []:
+        if res_finstat == []:
             return
         data = []
         for i in range( len(res_finstat) ):
             qt = res_finstat[i][0]
             income =int(res_finstat[i][-1])
-            res_bs = self.get_model.getData('bs', sid=sid, cond=[f' date = "{qt}" '])
-            roe = round(income/int(res_bs[0][-1]), 2) if res_bs != [] and res_bs[0][-1]!='0' else 0
+            res_bs = self.get_model.getData('bs', sid=sid, cond=[f'date = "{qt}"'])
+            roe = round(income/int(res_bs[0][-1]), 2) if res_bs != [] and res_bs[0][-1] != '0' else 0
             data.append([datetime.strptime(res_finstat[i][0], '%Y%m%d').strftime('%Y-%m-%d'), res_finstat[i][1], roe])
 
         self.BuildTable(self.ui.table_eps, data)
