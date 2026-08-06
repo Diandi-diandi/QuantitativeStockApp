@@ -2,14 +2,14 @@
 Quantitative Stock App -- View
 
 '''
-from tkinter.ttk import Style
 from PyQt5 import QtCore, QtGui, QtWidgets
-from os import path, chdir
 import pic
 from base64 import b64decode # base64 to bytes
 from io import  BytesIO
 from PIL import Image, ImageQt
-chdir(path.dirname(path.abspath(__file__)))
+
+# chdir was previously called at import time; that side-effect broke callers
+# that used this module as a library. Paths are resolved via config.py.
 
 class Ui_MainWindow(object):
 
@@ -117,7 +117,7 @@ class Ui_MainWindow(object):
     def SetTableItemStyle(self, table:QtWidgets.QTableWidget, index:int, text:str, width:int):
         temp = QtWidgets.QTableWidgetItem(text)
         table.setHorizontalHeaderItem(index, temp)
-        table.setColumnWidth(index, width)
+        table.setColumnWidth(int(index), int(width))
 
 ### set blocks
     def SetMenuBar(self):
@@ -257,6 +257,89 @@ class Ui_MainWindow(object):
         for i in range(col_num):
             self.SetTableItemStyle(self.table_foreign_inv, i, col_foreign_inv[i], self.table_foreign_inv.size().width()//col_num)
         self.tab_chip.addTab(self.table_foreign_inv, '外資持股比例')
+
+    # ================================================================
+    # Semantic API for the controller. Prefer these over reaching into
+    # self.table_* / self.label_* directly.
+    # ================================================================
+
+    def populate_table(self, table, rows, color_cols=(), color_ref_col=None,
+                       draw_by_row=True, on_item_clicked=None):
+        """Fill `table` with `rows`. Clears previous content.
+
+        color_cols: column indexes to color by sign.
+        color_ref_col: when draw_by_row=True, index in row whose value
+                       drives the sign color; otherwise the cell's own value.
+        on_item_clicked: connected only once per table across the app's
+                         lifetime — repeated populate() calls will not
+                         stack the same slot.
+        """
+        table.setRowCount(0)
+        if not rows:
+            return
+        table.setRowCount(len(rows))
+        for i, row in enumerate(rows):
+            for j, val in enumerate(row):
+                item = QtWidgets.QTableWidgetItem(str(val))
+                item.setFont(self.font_bigger)
+                if j in color_cols:
+                    ref = row[color_ref_col] if draw_by_row else val
+                    item.setForeground(QtGui.QColor(self._sign_color(ref)))
+                else:
+                    item.setForeground(QtGui.QColor('white'))
+                table.setItem(i, j, item)
+        if on_item_clicked is not None and not getattr(table, '_click_wired', False):
+            table.itemClicked.connect(on_item_clicked)
+            table._click_wired = True
+
+    @staticmethod
+    def _sign_color(val):
+        s = str(val)
+        if s == '--':
+            return 'gray'
+        if s.startswith('-'):
+            return 'green'
+        if s in ('0.0%', '0'):
+            return 'orange'
+        return 'red'
+
+    def clear_stock_detail_tables(self):
+        for t in (self.table_revenue, self.table_pbr, self.table_eps,
+                  self.table_institution, self.table_foreign_inv):
+            t.setRowCount(0)
+
+    def clear_all_tables(self):
+        for t in (self.table_quant, self.table_search):
+            t.setRowCount(0)
+        self.clear_stock_detail_tables()
+
+    def set_stock_label(self, sid: str, name: str):
+        self.label_current_stock.setText(f'〔{sid}〕{name}')
+
+    def set_price_display(self, price_row):
+        # price_row = (date_str, open, high, low, close, volume_str, spread_float)
+        titles = ['時', '開', '高', '低', '收', '量']
+        text = '  '.join(f'{titles[i]} {price_row[i]}' for i in range(6))
+        self.label_price.setText(text)
+        spread = price_row[6]
+        if spread > 0:
+            self.label_price.setStyleSheet('color: rgb(255, 0, 0);')
+        elif spread == 0:
+            self.label_price.setStyleSheet('color: orange;')
+        else:
+            self.label_price.setStyleSheet('color: rgb(0, 255, 0);')
+
+    def clear_kbar_plot(self):
+        while self.layout_tech_plot.count():
+            item = self.layout_tech_plot.takeAt(0)
+            w = item.widget()
+            if w is not None:
+                w.setParent(None)
+                w.deleteLater()
+
+    def add_kbar_plot(self, canvas):
+        self.clear_kbar_plot()
+        self.layout_tech_plot.addWidget(canvas, 0, 0)
 
 
 class LoginDialog(QtWidgets.QInputDialog):
