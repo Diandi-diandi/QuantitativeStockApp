@@ -12,8 +12,8 @@ from dataclasses import dataclass
 from typing import Callable
 
 from numpy import array, average
-from talib import abstract
 
+from indicators import bbands, sma, stoch
 from repositories import (
     BSRepo, FinStatRepo, ForeignInvRepo, InstitutionRepo, KBarRepo,
     PBRRepo, StrategyRepo,
@@ -129,8 +129,8 @@ def macross(sid: str) -> tuple[bool, str]:
     if len(rows) < 10:
         return False, "0"
     k = _kbar_asc(rows)
-    sma5 = abstract.SMA(k["close"], 5)
-    sma10 = abstract.SMA(k["close"], 10)
+    sma5 = sma(k["close"], 5)
+    sma10 = sma(k["close"], 10)
     ratio = _daily_ratio(k["spread"][-1], k["close"][-2])
     if sma5[-1] > sma10[-1] and ratio > 0.05:
         return True, k["date"][-1]
@@ -143,7 +143,7 @@ def kd(sid: str) -> tuple[bool, str]:
     if not rows:
         return False, "0"
     k = _kbar_asc(rows)
-    K, D = abstract.STOCH(k["high"], k["low"], k["close"], fastk_period=9)
+    K, D = stoch(k["high"], k["low"], k["close"], fastk_period=9)
     ratio = _daily_ratio(k["spread"][-1], k["close"][-2])
     if D[-1] > 20 and K[-1] > D[-1] and any(d > 20 for d in D[-3:]) and ratio > 0.03:
         return True, k["date"][-1]
@@ -155,7 +155,7 @@ def _bbands(sid: str, mode: str) -> tuple[bool, str]:
     if len(rows) < 20:
         return False, "0"
     k = _kbar_asc(rows)
-    ub, _, lb = abstract.BBANDS(k["close"], timeperiod=20)
+    ub, _, lb = bbands(k["close"], 20)
     close = k["close"][-1]
     if (mode == "l" and close < lb[-1]) or (mode == "u" and close > ub[-1]):
         return True, k["date"][-1]
@@ -184,7 +184,7 @@ def foreign_overbuy(sid: str) -> tuple[bool, str]:
         return False, "0"
     ins_asc = ins[::-1]
     overbuy = array([float(r[1]) for r in ins_asc])
-    ub, _, _ = abstract.BBANDS(overbuy, timeperiod=30)
+    ub, _, _ = bbands(overbuy, 30)
     _, ratio, _ = ratio_rows[0]
     if overbuy[-1] > ub[-1] and ratio > 20:
         return True, ratio_rows[0][0]

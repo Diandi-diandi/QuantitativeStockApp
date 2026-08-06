@@ -5,7 +5,8 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 import mpl_finance as mpf
 from numpy import array
-from talib import abstract
+
+from indicators import sma
 
 
 class KBarFigure(FigureCanvas):
@@ -25,8 +26,8 @@ class KBarFigure(FigureCanvas):
             "close":  array([r[6] for r in rows]),
             "volume": [int(r[1]) for r in rows],
         }
-        kbar["10MA"] = abstract.SMA(kbar["close"], 10)
-        kbar["20MA"] = abstract.SMA(kbar["close"], 20)
+        kbar["10MA"] = sma(kbar["close"], 10)
+        kbar["20MA"] = sma(kbar["close"], 20)
         for k in kbar:
             kbar[k] = kbar[k][-days:]
 
