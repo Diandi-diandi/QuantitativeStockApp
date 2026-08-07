@@ -4,9 +4,7 @@ Quantitative Stock App -- View
 '''
 from PyQt5 import QtCore, QtGui, QtWidgets
 import pic
-from base64 import b64decode # base64 to bytes
-from io import  BytesIO
-from PIL import Image, ImageQt
+from base64 import b64decode
 
 # chdir was previously called at import time; that side-effect broke callers
 # that used this module as a library. Paths are resolved via config.py.
@@ -151,11 +149,10 @@ class Ui_MainWindow(object):
         self.label_question_mark = QtWidgets.QLabel(self.frame_options)
         self.SetObjectStyle(self.label_question_mark, [320, 300, 30, 30], font_size = 9, style = 'QLabel:hover{color: rgb(0, 0, 0);}')
         self.label_question_mark.setMouseTracking(True)
-        # convert str to pixmap
-        byte = b64decode(pic.question_mark)
-        img = BytesIO(byte)
-        qimg = ImageQt.ImageQt(Image.open(img))
-        pixmap_question_mark = QtGui.QPixmap.fromImage(qimg)
+        # QPixmap.loadFromData reads image bytes directly, so we don't need
+        # PIL/Pillow just to convert a base64 PNG into a pixmap.
+        pixmap_question_mark = QtGui.QPixmap()
+        pixmap_question_mark.loadFromData(b64decode(pic.question_mark))
         self.label_question_mark.setScaledContents(True)
         self.label_question_mark.setPixmap(pixmap_question_mark)
 
