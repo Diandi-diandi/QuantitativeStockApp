@@ -7,15 +7,33 @@ downloader.py; long-running tasks in workers.py.
 """
 from __future__ import annotations
 
+import os
 import sys
 from datetime import datetime
+from pathlib import Path
+
+# --- Qt bootstrap ---------------------------------------------------------
+# Some Windows setups (Anaconda, other Qt-based apps) leave
+# QT_QPA_PLATFORM_PLUGIN_PATH stuck at an empty string. Qt then treats it
+# as "no valid location" and refuses to load the platform plugin
+# ("Could not find the Qt platform plugin \"windows\" in \"\""). Repair it
+# by pointing at PyQt5's bundled plugins before importing any Qt module.
+if sys.platform == "win32" and not os.environ.get("QT_QPA_PLATFORM_PLUGIN_PATH"):
+    import importlib.util as _il
+    _spec = _il.find_spec("PyQt5")
+    if _spec and _spec.submodule_search_locations:
+        _plugins = (Path(_spec.submodule_search_locations[0])
+                    / "Qt5" / "plugins" / "platforms")
+        if _plugins.exists():
+            os.environ["QT_QPA_PLATFORM_PLUGIN_PATH"] = str(_plugins)
+# --------------------------------------------------------------------------
 
 from PyQt5 import QtWidgets
 
 import QuantStockApp_View as view
 from config import SYS_PWD
 from downloader import check_connection
-from plotting import KBarFigure
+from plotting import make_kbar_canvas
 from repositories import (
     BSRepo, FinStatRepo, ForeignInvRepo, InstitutionRepo, KBarRepo,
     PBRRepo, RevenueRepo, StockRepo, StrategyRepo,
@@ -58,7 +76,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._update_worker: UpdateDataWorker | None = None
         self._quant_worker: QuantWorker | None = None
         self._latest_update: dict[str, str] | None = None
-        self._plot_canvas: KBarFigure | None = None
+        self._plot_canvas = None
 
     # ------------------------------------------------------------------
     # Setup
@@ -246,8 +264,7 @@ class MainWindow(QtWidgets.QMainWindow):
         if not latest:
             return
         if sid.isdigit():
-            self._plot_canvas = KBarFigure()
-            self._plot_canvas.plot(latest)
+            self._plot_canvas = make_kbar_canvas(latest)
             self.ui.add_kbar_plot(self._plot_canvas)
         latest_row = latest[0]  # (date, volume, money, open, high, low, close, spread, turnover)
         price_row = (

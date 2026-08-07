@@ -5,7 +5,8 @@ PyQt5>=5.15,<6
 FinMind>=1.7
 requests>=2.28
 numpy>=1.23
+pandas>=1.5
 matplotlib>=3.5
-mpl-finance==0.10.1
+mplfinance>=0.12
 Pillow>=9.0
 python-dateutil>=2.8

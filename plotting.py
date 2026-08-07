@@ -1,52 +1,63 @@
-"""KBar figure widget. Extracted from the old Model."""
+"""KBar figure widget backed by mplfinance (the maintained successor of
+the deprecated mpl_finance)."""
 from __future__ import annotations
 
+import mplfinance as mpf
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.figure import Figure
-import mpl_finance as mpf
-from numpy import array
-
-from indicators import sma
+from pandas import DataFrame, to_datetime
 
 
-class KBarFigure(FigureCanvas):
-    def __init__(self):
-        self.fig = Figure()  # Figure() instead of plt.figure() — no pyplot state
-        super().__init__(self.fig)
+# Red-up / green-down matches the Taiwan/Asia convention, opposite of
+# mplfinance's default 'yahoo' style.
+_MARKET_COLORS = mpf.make_marketcolors(
+    up="red", down="green",
+    edge="inherit", wick="inherit", volume="inherit",
+)
+_STYLE = mpf.make_mpf_style(
+    marketcolors=_MARKET_COLORS,
+    facecolor="black", edgecolor="white",
+    figcolor="black", gridcolor="dimgray",
+    rc={
+        "axes.labelcolor": "white",
+        "axes.edgecolor":  "white",
+        "xtick.color":     "white",
+        "ytick.color":     "white",
+        "text.color":      "white",
+    },
+)
 
-    def plot(self, kbar_rows: list[tuple], days: int = 60) -> None:
-        """rows: (date, volume, money, open, high, low, close, spread, turnover),
-        latest-first — same shape as KBarRepo.latest returns."""
-        rows = kbar_rows[::-1]
-        kbar = {
-            "date":   [r[0] for r in rows],
-            "open":   array([r[3] for r in rows]),
-            "high":   array([r[4] for r in rows]),
-            "low":    array([r[5] for r in rows]),
-            "close":  array([r[6] for r in rows]),
-            "volume": [int(r[1]) for r in rows],
-        }
-        kbar["10MA"] = sma(kbar["close"], 10)
-        kbar["20MA"] = sma(kbar["close"], 20)
-        for k in kbar:
-            kbar[k] = kbar[k][-days:]
 
-        self.fig.clf()
-        ax = self.fig.add_axes([0, .4, 1, .6])
-        ax2 = self.fig.add_axes([0, 0, 1, .4])
-        ax.set_xticks(range(0, len(kbar["date"]), 10))
-        ax.set_xticklabels(kbar["date"][::10])
-        mpf.candlestick2_ohlc(ax, kbar["open"], kbar["high"], kbar["low"],
-                              kbar["close"], width=.6, colorup="r",
-                              colordown="g", alpha=0.75)
-        ax.plot(kbar["10MA"], label="10MA")
-        ax.plot(kbar["20MA"], label="20MA")
+def make_kbar_canvas(kbar_rows: list[tuple], days: int = 60) -> FigureCanvas:
+    """Build a Qt-embeddable canvas from KBarRepo.latest output.
 
-        mpf.volume_overlay(ax2, kbar["open"], kbar["close"], kbar["volume"],
-                           colorup="r", colordown="g", width=0.7, alpha=0.8)
-        ax2.set_xticks(range(0, len(kbar["date"]), 10))
-        ax2.set_xticklabels(kbar["date"][::10])
-        ax.legend()
-        ax.set_facecolor("black")
-        ax2.set_facecolor("black")
-        self.draw()
+    kbar_rows shape (latest-first):
+        (date, volume, money, open, high, low, close, spread, turnover)
+    """
+    rows = list(reversed(kbar_rows))[-days:]
+    if not rows:
+        # Return an empty canvas rather than crashing on empty input.
+        from matplotlib.figure import Figure
+        return FigureCanvas(Figure())
+
+    df = DataFrame(
+        {
+            "Open":   [float(r[3]) for r in rows],
+            "High":   [float(r[4]) for r in rows],
+            "Low":    [float(r[5]) for r in rows],
+            "Close":  [float(r[6]) for r in rows],
+            "Volume": [int(r[1])   for r in rows],
+        },
+        index=to_datetime([r[0] for r in rows], format="%Y%m%d"),
+    )
+
+    fig, _ = mpf.plot(
+        df,
+        type="candle",
+        style=_STYLE,
+        mav=(10, 20),
+        volume=True,
+        returnfig=True,
+        figsize=(10, 6),
+        tight_layout=True,
+    )
+    return FigureCanvas(fig)
